@@ -3,6 +3,7 @@ package io.github.devrawr.events
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.event.EventPriority
+import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.plugin.java.JavaPlugin
 
 typealias Filter<T> = (T) -> Boolean
@@ -70,9 +71,14 @@ class ListenerBuilder<T : Event>(private val type: Class<T>)
 
                     for (function in cancelOn)
                     {
-                        if (function.invoke(event) && event is Cancellable)
+                        if (function.invoke(event))
                         {
-                            event.isCancelled = true
+                            when (event)
+                            {
+                                is Cancellable -> event.isCancelled = true
+                                is PlayerJoinEvent -> event.player.kickPlayer("Event cancelled")
+                                else -> println("Used ListenerBuilder.cancelOn() with an event which cannot be cancelled, ${this.type.name}")
+                            }
                         }
                     }
 
