@@ -23,16 +23,18 @@ object Events
         this.plugin = plugins.first()
     }
 
-    fun withPlugin(plugin: Plugin)
+    fun withPlugin(plugin: Plugin) : Events
     {
-        this.plugin = plugin
+        return this.apply {
+            this.plugin = plugin
 
-        // unregister the listener first
-        HandlerList.unregisterAll(listener)
+            // unregister the listener first
+            HandlerList.unregisterAll(listener)
 
-        for (event in this.events)
-        {
-            this.register(event)
+            for (event in this.events)
+            {
+                this.register(event)
+            }
         }
     }
 
