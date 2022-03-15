@@ -37,7 +37,7 @@ class ListenerBuilder<T : Event>(private val type: Class<T>)
         }
     }
 
-    fun cancelOnWithMessage(message: String, filter: Filter<T>): ListenerBuilder<T>
+    fun cancelWithMessage(message: String, filter: Filter<T>): ListenerBuilder<T>
     {
         return this.apply {
             this.cancelMessages.add(
