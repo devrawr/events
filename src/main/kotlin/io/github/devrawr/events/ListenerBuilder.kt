@@ -3,17 +3,23 @@ package io.github.devrawr.events
 import org.bukkit.event.Cancellable
 import org.bukkit.event.Event
 import org.bukkit.event.EventPriority
+import org.bukkit.event.player.PlayerEvent
 import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.plugin.java.JavaPlugin
 
 typealias Filter<T> = (T) -> Boolean
 typealias HandleEvent<T> = (T) -> Unit
+
+data class CancelMessage<T>(
+    val message: String,
+    val filter: Filter<T>
+)
+
 
 class ListenerBuilder<T : Event>(private val type: Class<T>)
 {
     private val filters = mutableListOf<Filter<T>>()
     private val cancelOn = mutableListOf<Filter<T>>()
-    private val handle = mutableListOf<HandleEvent<T>>()
+    private val cancelMessages = mutableListOf<CancelMessage<T>>()
 
     private var priority: EventPriority = EventPriority.NORMAL
 
@@ -31,6 +37,17 @@ class ListenerBuilder<T : Event>(private val type: Class<T>)
         }
     }
 
+    fun cancelOnWithMessage(message: String, filter: Filter<T>): ListenerBuilder<T>
+    {
+        return this.apply {
+            this.cancelMessages.add(
+                CancelMessage(
+                    message, filter
+                )
+            )
+        }
+    }
+
     fun priority(priority: EventPriority): ListenerBuilder<T>
     {
         return this.apply {
@@ -39,13 +56,6 @@ class ListenerBuilder<T : Event>(private val type: Class<T>)
     }
 
     fun on(handle: HandleEvent<T>): ListenerBuilder<T>
-    {
-        return this.apply {
-            this.handle.add(handle)
-        }
-    }
-
-    fun apply(plugin: JavaPlugin): ListenerBuilder<T>
     {
         return this.apply {
             Events.register(
@@ -69,6 +79,27 @@ class ListenerBuilder<T : Event>(private val type: Class<T>)
                         }
                     }
 
+                    for (function in cancelMessages)
+                    {
+                        if (function.filter.invoke(event))
+                        {
+                            when (event)
+                            {
+                                is Cancellable ->
+                                {
+                                    event.isCancelled = true
+
+                                    if (event is PlayerEvent)
+                                    {
+                                        event.player.sendMessage(function.message)
+                                    }
+                                }
+                                is PlayerJoinEvent -> event.player.kickPlayer(function.message)
+                                else -> println("Used ListenerBuilder.cancelOn() with an event which cannot be cancelled, ${this.type.name}")
+                            }
+                        }
+                    }
+
                     for (function in cancelOn)
                     {
                         if (function.invoke(event))
@@ -79,13 +110,12 @@ class ListenerBuilder<T : Event>(private val type: Class<T>)
                                 is PlayerJoinEvent -> event.player.kickPlayer("Event cancelled")
                                 else -> println("Used ListenerBuilder.cancelOn() with an event which cannot be cancelled, ${this.type.name}")
                             }
+
+                            break
                         }
                     }
 
-                    for (function in handle)
-                    {
-                        function.invoke(event)
-                    }
+                    handle.invoke(event)
                 }
             )
         }
